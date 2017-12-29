@@ -28,77 +28,29 @@ class Player(pygame.sprite.Sprite):
         self.i1=self.image
         self.rect=self.image.get_rect()
         self.game=game
-        self.x=x*32
-        self.y=y*32
-        self.vx,self.vy=0,0
-
-    def collide(self,dir):
-        if dir=='x':
-            hits=pygame.sprite.spritecollide(self,self.game.walls,False)
-            if hits:
-                if self.vx>0:
-                    self.x=hits[0].rect.left-self.rect.width
-                if self.vx<0:
-                    self.x=hits[0].rect.right
-                self.vx=0
-                self.rect.x=self.x
-        if dir=='y':
-            hits=pygame.sprite.spritecollide(self,self.game.walls,False)
-            if hits:
-                if self.vy>0:
-                    self.y=hits[0].rect.top-self.rect.height
-                if self.vy<0:
-                    self.y=hits[0].rect.bottom
-                self.vy=0
-                self.rect.y=self.y
-        if dir=='x':
-            hits=pygame.sprite.spritecollide(self,self.game.breakables,False)
-            if hits:
-                if self.vx>0:
-                    self.x=hits[0].rect.left-self.rect.width
-                if self.vx<0:
-                    self.x=hits[0].rect.right
-                self.vx=0
-                self.rect.x=self.x
-        if dir=='y':
-            hits=pygame.sprite.spritecollide(self,self.game.breakables,False)
-            if hits:
-                if self.vy>0:
-                    self.y=hits[0].rect.top-self.rect.height
-                if self.vy<0:
-                    self.y=hits[0].rect.bottom
-                self.vy=0
-                self.rect.y=self.y       
-    def bomber(self):
-        
+        self.x=x
+        self.y=y
+    def move(self,dx=0,dy=0):
+        if not self.collide(dx,dy) and self.collide1(dx,dy) :
+            self.x+=dx
+            self.y+=dy
+    def collide(self,dx=0,dy=0):
+        for w in self.game.walls: 
+             if w.x==self.x+dx and w.y==self.y+dy:
+                 return True                
+        return False
+    def collide1(self,dx=0,dy=0):
+        for b in self.game.breakables: 
+             if b.x==self.x+dx and b.y==self.y+dy:
+                 return False                
+        return True
+    def bomber(self):       
         bomb=Bomb(self.rect.x,self.rect.y,self,self.game)
         self.game.all_sprites.add(bomb)
         self.game.bombs.add(bomb)
-            
     def update(self):
-        self.vx=0
-        self.vy=0
-        keys=pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            self.vx=-5
-            self.image=self.i4
-        elif keys[pygame.K_RIGHT]:
-            self.vx=5
-            self.image=self.i2
-        elif keys[pygame.K_UP]:
-            self.vy=-5
-            self.image=self.i3
-        elif keys[pygame.K_DOWN]:
-            self.vy=5
-            self.image=self.i1
-        elif keys[pygame.K_SPACE]:
-            self.bomber()  
-        self.x+=self.vx
-        self.y+=self.vy
-        self.rect.x=self.x
-        self.collide('x')
-        self.rect.y=self.y
-        self.collide('y')
+        self.rect.x=self.x*32
+        self.rect.y=self.y*32
         if self.rect.left<=0:
             self.rect.left=0
         if self.rect.right>=dw:
@@ -113,16 +65,20 @@ class Wall(pygame.sprite.Sprite):
         self.image=pygame.image.load("wall.png")
         self.image=pygame.transform.scale(self.image,[32,32])
         self.rect=self.image.get_rect()
-        self.rect.x=x*32
-        self.rect.y=y*32
+        self.x=x
+        self.y=y
+        self.rect.x=self.x*32
+        self.rect.y=self.y*32
 class Breakable(pygame.sprite.Sprite):
     def __init__(self,x,y):
         super().__init__()
         self.image=pygame.image.load("bwall.png")
         self.image=pygame.transform.scale(self.image,[32,32])
         self.rect=self.image.get_rect()
-        self.rect.x=x*32
-        self.rect.y=y*32
+        self.x=x
+        self.y=y
+        self.rect.x=self.x*32
+        self.rect.y=self.y*32
 class Fire(pygame.sprite.Sprite):
     def __init__(self,x,y,vx,vy,game):
         super().__init__()
@@ -173,8 +129,7 @@ class Bomb(pygame.sprite.Sprite):
             self.game.fires.add(fire4)
             fire5=Fire(self.rect.x,self.rect.y,0,0,self.game)
             self.game.all_sprites.add(fire5)
-            self.game.fires.add(fire5)
-      
+            self.game.fires.add(fire5)      
 class Map:
     def __init__(self,file_name):
         self.data=[]
@@ -187,7 +142,7 @@ class Game:
         pygame.display.set_caption("Bomber Man")
         self.clock=pygame.time.Clock()
     def new(self):
-        self.map=Map("map1.txt")
+        self.map=Map("map2.txt")
         self.all_sprites=pygame.sprite.Group()
         self.bombs=pygame.sprite.Group()
         self.walls=pygame.sprite.Group()
@@ -202,9 +157,11 @@ class Game:
                 if tile=='2':    
                     self.bwall=Breakable(col,row)
                     self.all_sprites.add(self.bwall)
-                    self.breakables.add(self.bwall)                  
-        self.player=Player(4,4,self)
-        self.all_sprites.add(self.player)
+                    self.breakables.add(self.bwall)
+                if tile=='p':
+                    
+                    self.player=Player(4,4,self)
+                    self.all_sprites.add(self.player)
         
     def run(self):
         self.play=True
@@ -218,8 +175,24 @@ class Game:
             if event.type==pygame.QUIT:
                 pygame.quit()
                 quit()
+            if event.type==pygame.KEYDOWN:
+                if event.key==pygame.K_UP:
+                    self.player.move(0,-1)
+                elif event.key==pygame.K_DOWN:
+                    self.player.move(0,1)
+                elif event.key==pygame.K_RIGHT:
+                    self.player.move(1,0)
+                elif event.key==pygame.K_LEFT:
+                    self.player.move(-1,0)
+                elif event.key==pygame.K_SPACE:
+                    self.player.bomber()
     def update(self):
         self.all_sprites.update()
+        hits=pygame.sprite.spritecollide(self.player,self.fires,True)
+        if hits:
+            self.gameover()
+
+            self.new()
     def draw(self):
         self.screen.fill(white)
         self.all_sprites.draw(self.screen)
@@ -231,7 +204,20 @@ class Game:
         msgrect.x=x
         msgrect.y=y
         self.screen.blit(msgtxt,msgrect)
-        
+    def gameover(self):
+        wait=True
+        while wait:
+            for event in pygame.event.get():
+                if event.type==pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                if event.type==pygame.KEYDOWN:
+                    if event.key==pygame.K_RETURN:
+                        wait=0
+            self.screen.fill(white)            
+            self.msg("Game Over!",blue,50,160,100)
+            self.msg("Press Enter to Play Again",blue,20,160,300)
+            pygame.display.flip()  
     def start(self):
         wait=1
         while wait:
