@@ -30,8 +30,10 @@ class Player(pygame.sprite.Sprite):
         self.game=game
         self.x=x
         self.y=y
-    def move(self,dx=0,dy=0):
-        if not self.collide(dx,dy) and self.collide1(dx,dy) :
+        self.last=pygame.time.get_ticks()
+    def move(self,dx=0,dy=0,img=None):
+        if not self.collide(dx,dy) and self.collide1(dx,dy) and  self.collide2(dx,dy):
+            self.image=img
             self.x+=dx
             self.y+=dy
     def collide(self,dx=0,dy=0):
@@ -44,10 +46,17 @@ class Player(pygame.sprite.Sprite):
              if b.x==self.x+dx and b.y==self.y+dy:
                  return False                
         return True
-    def bomber(self):       
-        bomb=Bomb(self.rect.x,self.rect.y,self,self.game)
-        self.game.all_sprites.add(bomb)
-        self.game.bombs.add(bomb)
+    def collide2(self,dx=0,dy=0):
+        for m in self.game.mobs:
+            if m.x==self.x+dx and m.y==self.y+dy:
+                return False
+        return True   
+    def bomber(self):
+        now=pygame.time.get_ticks()
+        if now-self.last>500:
+            bomb=Bomb(self.rect.x,self.rect.y,self,self.game)
+            self.game.all_sprites.add(bomb)
+            self.game.bombs.add(bomb)
     def update(self):
         self.rect.x=self.x*32
         self.rect.y=self.y*32
@@ -96,23 +105,26 @@ class Fire(pygame.sprite.Sprite):
     def update(self):
         hits=pygame.sprite.groupcollide(self.game.fires,self.game.breakables,1,1)
         now=pygame.time.get_ticks()
-        if now-self.last>1000:
-            self.kill()
-        
+        if now-self.last>500:
+            self.kill()       
 class Bomb(pygame.sprite.Sprite):
     def __init__(self,x,y,player,game):
         super().__init__()
-        self.image=pygame.image.load("bomb.png")
-        self.image=pygame.transform.scale(self.image,[32,32])
+        self.i1=pygame.image.load("bomb.png")
+        self.i1=pygame.transform.scale(self.i1,[32,32])
+        self.i2=pygame.image.load("bomb1.png")
+        self.i2=pygame.transform.scale(self.i1,[32,32])
+        self.image=self.i1
         self.rect=self.image.get_rect()
         self.last=pygame.time.get_ticks()
         self.rect.x=x
         self.rect.y=y
         self.player=player
         self.game=game
+        self.ci=1
     def update(self):
         now=pygame.time.get_ticks()
-        if now-self.last>1000:
+        if now-self.last>500:
             self.last=now
             self.kill()
             fire1=Fire(self.rect.x,self.rect.y,30,0,self.game)
@@ -130,39 +142,56 @@ class Bomb(pygame.sprite.Sprite):
             fire5=Fire(self.rect.x,self.rect.y,0,0,self.game)
             self.game.all_sprites.add(fire5)
             self.game.fires.add(fire5)      
-class Map:
-    def __init__(self,file_name):
+class Level:
+    def __init__(self,level):
         self.data=[]
-        with open(file_name,'r+') as f:
+        with open(level,'r+') as f:
             for line in f:
                 self.data.append(line)
+class Mob(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        super().__init__()
+        self.image=pygame.image.load("bfront.png")
+        self.image=pygame.transform.scale(self.image,[32,32])
+        self.rect=self.image.get_rect()
+        self.x=x
+        self.y=y
+        self.rect.x=self.x*32
+        self.rect.y=self.y*32
 class Game:
     def __init__(self):
         self.screen=pygame.display.set_mode([dw,dh])
         pygame.display.set_caption("Bomber Man")
         self.clock=pygame.time.Clock()
-    def new(self):
-        self.map=Map("map2.txt")
+        self.level=1
+        self.map=Level("map2.txt")
+        self.score=0
+    def new(self):   
         self.all_sprites=pygame.sprite.Group()
+        self.mobs=pygame.sprite.Group()
         self.bombs=pygame.sprite.Group()
         self.walls=pygame.sprite.Group()
         self.fires=pygame.sprite.Group()
         self.breakables=pygame.sprite.Group()
+        if self.level==2:
+            self.map=Level("map1.txt")
         for col,tiles in enumerate(self.map.data):
             for row,tile in enumerate(tiles):
                 if tile=='1':
-                    self.wall=Wall(col,row)
+                    self.wall=Wall(row,col)
                     self.all_sprites.add(self.wall)
                     self.walls.add(self.wall)
                 if tile=='2':    
-                    self.bwall=Breakable(col,row)
+                    self.bwall=Breakable(row,col)
                     self.all_sprites.add(self.bwall)
                     self.breakables.add(self.bwall)
-                if tile=='p':
-                    
-                    self.player=Player(4,4,self)
+                if tile=='p':                   
+                    self.player=Player(row,col,self)
                     self.all_sprites.add(self.player)
-        
+                if tile=='e':    
+                    self.mob=Mob(row,col)
+                    self.all_sprites.add(self.mob)
+                    self.mobs.add(self.mob)
     def run(self):
         self.play=True
         while self.play:
@@ -177,25 +206,34 @@ class Game:
                 quit()
             if event.type==pygame.KEYDOWN:
                 if event.key==pygame.K_UP:
-                    self.player.move(0,-1)
+                    self.player.move(0,-1,self.player.i3)
                 elif event.key==pygame.K_DOWN:
-                    self.player.move(0,1)
+                    self.player.move(0,1,self.player.i1)          
                 elif event.key==pygame.K_RIGHT:
-                    self.player.move(1,0)
+                    self.player.move(1,0,self.player.i2)  
                 elif event.key==pygame.K_LEFT:
-                    self.player.move(-1,0)
+                    self.player.move(-1,0,self.player.i4)              
                 elif event.key==pygame.K_SPACE:
                     self.player.bomber()
     def update(self):
         self.all_sprites.update()
-        hits=pygame.sprite.spritecollide(self.player,self.fires,True)
-        if hits:
+        hits=pygame.sprite.spritecollide(self.player,self.fires,False)
+        if hits:            
             self.gameover()
-
+            self.new()
+        hits1=pygame.sprite.groupcollide(self.breakables,self.fires,True,True)
+        if hits1:
+            self.score+=30
+        hits2=pygame.sprite.groupcollide(self.mobs,self.fires,True,True)
+        if hits2:
+            self.score+=50
+        if len(self.mobs)<=0 and len(self.breakables)<=0:
+            self.level+=1
             self.new()
     def draw(self):
         self.screen.fill(white)
         self.all_sprites.draw(self.screen)
+        self.msg("Score:"+str(self.score),blue,20,230,25)
         pygame.display.flip()
     def msg(self,txt,color,size,x,y):
         self.font=pygame.font.SysFont("comicsansms",size,bold=1)
