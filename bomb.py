@@ -13,6 +13,9 @@ dh=512
 dw=512
 pygame.init()
 pygame.mixer.init()
+i=pygame.image.load("bicon.png")
+i=pygame.transform.scale(i,[32,32])
+icon=pygame.display.set_icon(i)
 class Player(pygame.sprite.Sprite):
     def __init__(self,x,y,game):
         super().__init__()
@@ -112,8 +115,6 @@ class Bomb(pygame.sprite.Sprite):
         super().__init__()
         self.i1=pygame.image.load("bomb.png")
         self.i1=pygame.transform.scale(self.i1,[32,32])
-        self.i2=pygame.image.load("bomb1.png")
-        self.i2=pygame.transform.scale(self.i1,[32,32])
         self.image=self.i1
         self.rect=self.image.get_rect()
         self.last=pygame.time.get_ticks()
@@ -121,7 +122,6 @@ class Bomb(pygame.sprite.Sprite):
         self.rect.y=y
         self.player=player
         self.game=game
-        self.ci=1
     def update(self):
         now=pygame.time.get_ticks()
         if now-self.last>500:
@@ -151,7 +151,7 @@ class Level:
 class Mob(pygame.sprite.Sprite):
     def __init__(self,x,y):
         super().__init__()
-        self.image=pygame.image.load("bfront.png")
+        self.image=pygame.image.load("mob.png")
         self.image=pygame.transform.scale(self.image,[32,32])
         self.rect=self.image.get_rect()
         self.x=x
@@ -165,6 +165,8 @@ class Game:
         self.clock=pygame.time.Clock()
         self.level=1
         self.map=Level("map2.txt")
+        self.hscore=open("highscore.txt",'r')
+        self.hi_score=int(self.hscore.read())
         self.score=0
     def new(self):   
         self.all_sprites=pygame.sprite.Group()
@@ -172,7 +174,7 @@ class Game:
         self.bombs=pygame.sprite.Group()
         self.walls=pygame.sprite.Group()
         self.fires=pygame.sprite.Group()
-        self.breakables=pygame.sprite.Group()
+        self.breakables=pygame.sprite.Group()        
         if self.level==2:
             self.map=Level("map1.txt")
         for col,tiles in enumerate(self.map.data):
@@ -215,6 +217,8 @@ class Game:
                     self.player.move(-1,0,self.player.i4)              
                 elif event.key==pygame.K_SPACE:
                     self.player.bomber()
+                elif event.key==pygame.K_RETURN:
+                    self.pause()    
     def update(self):
         self.all_sprites.update()
         hits=pygame.sprite.spritecollide(self.player,self.fires,False)
@@ -230,8 +234,12 @@ class Game:
         if len(self.mobs)<=0 and len(self.breakables)<=0:
             self.level+=1
             self.new()
+        if self.hi_score<self.score:
+            self.hscore=open("highscore.txt",'w+')
+            self.hscore.write(str(self.score))
+            self.hscore.close()
     def draw(self):
-        self.screen.fill(white)
+        self.screen.fill(light_blue)
         self.all_sprites.draw(self.screen)
         self.msg("Score:"+str(self.score),blue,20,230,25)
         pygame.display.flip()
@@ -242,6 +250,20 @@ class Game:
         msgrect.x=x
         msgrect.y=y
         self.screen.blit(msgtxt,msgrect)
+    def pause(self):
+        wait=True
+        while wait:
+            for event in pygame.event.get():
+                if event.type==pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                if event.type==pygame.KEYDOWN:
+                    if event.key==pygame.K_RETURN:
+                        wait=0
+            self.screen.fill(light_blue)
+            self.msg("Paused",blue,50,160,100)
+            self.msg("Press Enter to Continue",blue,20,140,300)
+            pygame.display.flip()      
     def gameover(self):
         wait=True
         while wait:
@@ -252,9 +274,12 @@ class Game:
                 if event.type==pygame.KEYDOWN:
                     if event.key==pygame.K_RETURN:
                         wait=0
-            self.screen.fill(white)            
-            self.msg("Game Over!",blue,50,160,100)
-            self.msg("Press Enter to Play Again",blue,20,160,300)
+            self.screen.fill(light_blue)
+            self.hscore=open("highscore.txt",'r')
+            self.hi_score=int(self.hscore.read())
+            self.msg("Game Over!",blue,50,140,100)
+            self.msg("Press Enter to Play Again",blue,20,140,300)
+            self.msg("hi_score"+str(self.hi_score),blue,20,180,25)
             pygame.display.flip()  
     def start(self):
         wait=1
@@ -266,9 +291,10 @@ class Game:
                 if event.type==pygame.KEYDOWN:
                     if event.key==pygame.K_RETURN:
                         wait=0
-            self.screen.fill(white)            
+            self.screen.fill(light_blue)            
             self.msg("Bomber",blue,50,160,100)
             self.msg("Press Enter to Play",blue,20,160,300)
+            self.msg("hi_score:"+str(self.hi_score),blue,20,180,25)
             pygame.display.flip()
 g=Game()
 while g.run:
